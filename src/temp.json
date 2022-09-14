@@ -1,0 +1,5 @@
+{
+  "if": "fish == \"oneFish\"",
+  "then": "fish = \"twoFish\"",
+  "else": "fish = \"blueFish\""
+}
