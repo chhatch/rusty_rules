@@ -31,9 +31,8 @@ pub fn run_rules(rules: Rules, context: &mut HashMapContext) {
                 RuleContents::Hash(rule) => {
                     if eval_with_context(&rule.r#if, context).unwrap() == Value::from(true) {
                         eval_with_context_mut(&rule.then, context).unwrap();
-                    } else {
-                        // cloned to avoid borrowing issue with println! macro
-                        eval_with_context_mut(&rule.r#else.clone().unwrap(), context).unwrap();
+                    } else if let Some(else_rule) = &rule.r#else{
+                        eval_with_context_mut(else_rule, context).unwrap();
                     }
 
                     assert_eq!(context.get_value("fish"), Some(&Value::from("twoFish")));
