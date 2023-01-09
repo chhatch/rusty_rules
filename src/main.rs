@@ -1,52 +1,35 @@
 extern crate serde_json;
 
 use evalexpr::*;
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug)]
-struct RuleObject {
-    r#if: String,
-    then: String,
-    r#else: Option<String>,
-}
-
-type RuleString = String;
-
-#[derive(Serialize, Deserialize, Debug)]
-enum RuleArrayContents {
-    Object(RuleObject),
-    String(RuleString),
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(untagged)]
-enum Rules {
-    Object(RuleObject),
-    String(RuleString),
-    Array(Vec<RuleArrayContents>),
-}
+mod rules_engine;
+use crate::rules_engine::*;
 
 fn main() {
-    let mut context = HashMapContext::new();
-    let rule_json = r#" {
+    let rule_object_json = r#" {
         "if": "fish == \"oneFish\"",
         "then": "fish = \"twoFish\"",
         "else": "fish = \"blueFish\""
     }"#;
-    let rule = serde_json::from_str::<RuleObject>(rule_json).unwrap();
-    context.set_value("fish".into(), "oneFish".into()).unwrap();
-    assert_eq!(context.get_value("fish"), Some(&Value::from("oneFish")));
+    let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
 
-    assert_eq!(
-        eval_with_context("fish == \"oneFish\"", &context),
-        Ok(Value::from(true))
-    );
+    let rule_string = Rules::RuleContents(RuleContents::String("fish = \"redFish\"".to_string()));
 
-    if eval_with_context(&rule.r#if, &context).unwrap() == Value::from(true) {
-        eval_with_context_mut(&rule.then, &mut context).unwrap();
-    } else {
-        eval_with_context(&rule.r#else.unwrap(), &mut context).unwrap();
-    }
+    let rule_array_json = r#" [{
+        "if": "fish == \"oneFish\"",
+        "then": "fish = \"twoFish\"",
+        "else": "fish = \"blueFish\""
+    }, "fish == \"twoFish\""]"#;
+    let rule_array = serde_json::from_str::<Rules>(rule_array_json).unwrap();
 
-    assert_eq!(context.get_value("fish"), Some(&Value::from("twoFish")));
+    let mut context = HashMapContext::new();
+    // context.set_value("fish".into(), "oneFish".into()).unwrap();
+    // assert_eq!(context.get_value("fish"), Some(&Value::from("oneFish")));
+    // assert_eq!(
+    //     eval_with_context("fish == \"oneFish\"", &context),
+    //     Ok(Value::from(true))
+    // );
+
+    run_rules(rule_object, &mut context);
+    // run_rules(rule_string, &mut context);
+    run_rules(rule_array, &mut context);
 }
