@@ -27,13 +27,9 @@ fn main() {
 
     let mut context = HashMapContext::new();
     context.set_value("fish".into(), "oneFish".into()).unwrap();
-    // assert_eq!(context.get_value("fish"), Some(&Value::from("oneFish")));
-    // assert_eq!(
-    //     eval_with_context("fish == \"oneFish\"", &context),
-    //     Ok(Value::from(true))
-    // );
 
-    run_rules(rule_object, &mut context);
+    run_rules(&rule_object, &mut context);
+    dbg!(context.get_value("fish").unwrap());
     // run_rules(rule_string, &mut context);
     // run_rules(rule_array, &mut context);
 }
