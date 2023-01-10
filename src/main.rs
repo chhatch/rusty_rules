@@ -16,7 +16,7 @@ fn main() {
     }"#;
     let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
 
-    let rule_string = Rules::RuleContents(RuleContents::String("fish = \"redFish\"".to_string()));
+    let rule_string = Rules::String("fish = \"redFish\"".to_string());
 
     let rule_array_json = r#" [{
         "if": "fish == \"oneFish\"",
