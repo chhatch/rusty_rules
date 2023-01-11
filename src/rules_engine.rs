@@ -4,13 +4,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 
 pub struct AndObject {
-    pub and: Vec<Conditional>,
+    pub and: Box<Rules>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 
 pub struct OrObject {
-    pub or: Vec<Conditional>,
+    pub or: Box<Rules>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -33,7 +33,8 @@ pub struct RuleObject {
 pub enum Rules {
     Object(RuleObject),
     String(String),
-    Array(Box<Vec<Rules>>),
+    RuleArray(Box<Vec<Rules>>),
+    ConditionalArray(Vec<Conditional>),
     AndObject(AndObject),
     OrObject(OrObject),
 }
@@ -48,17 +49,26 @@ pub fn run_rules(rules: &Rules, context: &mut HashMapContext) -> evalexpr::Value
                         eval_with_context(&condition, context).unwrap() == Value::from(true);
                 }
                 Conditional::AndObject(and) => {
-                    for rule in &and.and {
-                        match rule {
-                            Conditional::String(condition) => {
-                                condition_result = eval_with_context(&condition, context).unwrap()
-                                    == Value::from(true);
-                                if !condition_result {
-                                    break;
+                    if let Rules::ConditionalArray(conditions) = &*and.and {
+                        for rule in conditions {
+                            match rule {
+                                Conditional::String(condition) => {
+                                    condition_result = eval_with_context(&condition, context)
+                                        .unwrap()
+                                        == Value::from(true);
+                                    if !condition_result {
+                                        break;
+                                    }
                                 }
+                                Conditional::AndObject(and) => {
+                                    condition_result =
+                                        run_rules(&*and.and, context) == Value::from(true);
+                                }
+                                _ => {}
                             }
-                            _ => {}
                         }
+                    } else {
+                        panic!("AndObject should contain ConditionalArray");
                     }
                 }
                 _ => {}
@@ -71,13 +81,10 @@ pub fn run_rules(rules: &Rules, context: &mut HashMapContext) -> evalexpr::Value
                 return evalexpr::Value::from(());
             }
         }
-        Rules::Array(rules) => {
-            for rule in rules.iter() {
-                run_rules(rule, context);
-            }
-            evalexpr::Value::from(())
+        Rules::RuleArray(rules) => {
+            Value::Tuple(rules.iter().map(|rule| run_rules(rule, context)).collect())
         }
         Rules::String(rule) => eval_with_context_mut(&rule, context).expect("Rule String failed"),
-        _ => evalexpr::Value::from(()),
+        _ => panic!("Rule type not supported"),
     }
 }

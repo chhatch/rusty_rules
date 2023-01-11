@@ -81,4 +81,31 @@ mod tests {
             _ => panic!("fish should be a string"),
         }
     }
+    #[test]
+    fn evaluate_conditional() {
+        let rule_object_json = r#" {
+        "if": {"and": ["fish == \"oneFish\"", "cat == \"inHat\""]},
+          "then": "fish = \"twoFish\"",
+          "else": "fish = \"blueFish\""
+        }"#;
+        let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
+        let mut context = HashMapContext::new();
+
+        context.set_value("fish".into(), "oneFish".into());
+        context.set_value("cat".into(), "inHat".into());
+
+        run_rules(&rule_object, &mut context);
+
+        match context.get_value("fish").unwrap() {
+            Value::String(s) => assert_eq!(s, "twoFish"),
+            _ => panic!("fish should be a string"),
+        };
+
+        run_rules(&rule_object, &mut context);
+
+        match context.get_value("fish").unwrap() {
+            Value::String(s) => assert_eq!(s, "blueFish"),
+            _ => panic!("fish should be a string"),
+        };
+    }
 }
