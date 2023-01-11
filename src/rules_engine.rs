@@ -57,7 +57,7 @@ pub fn run_rules(rules: &Rules, context: &mut HashMapContext) -> evalexpr::Value
                                     break;
                                 }
                             }
-                            _ => {},
+                            _ => {}
                         }
                     }
                 }
@@ -74,7 +74,7 @@ pub fn run_rules(rules: &Rules, context: &mut HashMapContext) -> evalexpr::Value
         Rules::Array(rules) => {
             for rule in rules.iter() {
                 run_rules(rule, context);
-            };
+            }
             evalexpr::Value::from(())
         }
         Rules::String(rule) => eval_with_context_mut(&rule, context).expect("Rule String failed"),
