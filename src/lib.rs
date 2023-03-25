@@ -4,8 +4,12 @@ use evalexpr::*;
 mod rules_engine;
 use crate::rules_engine::*;
 
+extern crate wasm_bindgen;
+use wasm_bindgen::prelude::*;
+use web_sys::console;
+
 fn main() {
-    let rule_object_json = r#" ["fish = \"twoFish\"", { "return": "fish" }, "fish = \"twoFish\""]"#;
+    let rule_object_json = r#" [{"return": ""hello node!""}]"#;
     let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
     dbg!(&rule_object);
 
@@ -15,6 +19,21 @@ fn main() {
     context.set_value("cat".into(), "inHat".into()).unwrap();
 
     run_rules(&rule_object, &mut context);
+}
+
+#[wasm_bindgen]
+pub fn wasm_rules(rule_string: String) -> String {
+    let parsed_rules = serde_json::from_str::<Rules>(rule_string.as_str()).unwrap();
+    let mut context = HashMapContext::new();
+
+    context.set_value("foo".into(), Value::Int(1)).unwrap();
+    context.set_value("bar".into(), Value::Int(1)).unwrap();
+
+    if let Value::String(result) = run_rules(&parsed_rules, &mut context) {
+        return result;
+    } else {
+        panic!("No result");
+    }
 }
 
 #[cfg(test)]

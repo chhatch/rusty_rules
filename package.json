@@ -1,0 +1,15 @@
+{
+  "name": "rusty_rules",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/chhatch/rusty_rules.git",
+  "author": "Chris Hatch <chris.hatch@hotelengine.com>",
+  "license": "MIT",
+  "scripts": {
+    "buildWasm": "wasm-pack build ./ --out-name index --target nodejs"
+  },
+  "dependencies": {
+    "@elite-libs/rules-machine": "^1.6.0",
+    "lodash": "^4.17.21"
+  }
+}
