@@ -5,7 +5,7 @@ mod rules_engine;
 use crate::rules_engine::*;
 
 fn main() {
-    let rule_object_json = r#" ["fish = \"twoFish\"", { "return": "fish" }, { "return": "fish" }]"#;
+    let rule_object_json = r#" ["fish = \"twoFish\"", { "return": "fish" }, "fish = \"twoFish\""]"#;
     let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
     dbg!(&rule_object);
 
@@ -38,7 +38,8 @@ mod tests {
     }
     #[test]
     fn evaluate_array() {
-        let rule_array_json = r#"["fish = \"twoFish\"", "cat = \"inHat\""]"#;
+        // this test is also a regression test for bug where length 3 arrays were parsed as If objects
+        let rule_array_json = r#"["fish = \"twoFish\"", "cat = \"inHat\"", "fish = \"blueFish\""]"#;
         let rule_array = serde_json::from_str::<Rules>(rule_array_json).unwrap();
         let mut context = HashMapContext::new();
 
@@ -48,7 +49,7 @@ mod tests {
         run_rules(&rule_array, &mut context);
 
         match context.get_value("fish").unwrap() {
-            Value::String(s) => assert_eq!(s, "twoFish"),
+            Value::String(s) => assert_eq!(s, "blueFish"),
             _ => panic!("fish should be a string"),
         }
         match context.get_value("cat").unwrap() {

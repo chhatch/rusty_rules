@@ -39,8 +39,9 @@ pub enum RuleObject {
 #[serde(untagged)]
 pub enum Rules {
     String(String),
-    Object(RuleObject),
+    // Array needs to come before Object oterhwise Serde parses length 3 arrays as If Object
     Array(Box<Vec<Rules>>),
+    Object(RuleObject),
 }
 
 #[derive(Debug)]
