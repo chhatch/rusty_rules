@@ -38,7 +38,7 @@ function benchmark(iterations) {
   performance.measure(bigWasmLabel, bigWasmLabel);
 
   performance.mark(bigJsLabel);
-  const rulesEngine = ruleFactory(littleJsonRules);
+  const rulesEngine = ruleFactory(bigJsonRules);
   rulesEngine({ foo: 1, bar: 1 });
   performance.measure(bigJsLabel, bigJsLabel);
 
@@ -59,6 +59,10 @@ function benchmark(iterations) {
     performance
       .getEntriesByType("measure")
       .map((x) => pick(x, ["name", "duration"]))
+      .map((x) => {
+        x.duration = x.duration.toFixed(2);
+        return x;
+      })
   );
 
   performance.clearMarks();
