@@ -1,17 +1,20 @@
 extern crate serde_json;
 
-use evalexpr::*;
+use evalexpr::{
+    context_map, Context, ContextWithMutableVariables, EvalexprError, HashMapContext, Value,
+};
+use serde_json::Value as JsonValue;
 mod rules_engine;
 use crate::rules_engine::*;
+use std::collections::HashMap;
 
 extern crate wasm_bindgen;
 use wasm_bindgen::prelude::*;
 use web_sys::console;
 
 fn main() {
-    let rule_object_json = r#" [{"return": ""hello node!""}]"#;
+    let rule_object_json = r#" [{"return": "\"hello node!\", \"hello wasm!\""}]"#;
     let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
-    dbg!(&rule_object);
 
     let mut context = HashMapContext::new();
 
@@ -22,17 +25,45 @@ fn main() {
 }
 
 #[wasm_bindgen]
-pub fn wasm_rules(rule_string: String) -> String {
+pub fn wasm_rules(rule_string: String, context_string: String) -> String {
     let parsed_rules = serde_json::from_str::<Rules>(rule_string.as_str()).unwrap();
     let mut context = HashMapContext::new();
 
-    context.set_value("foo".into(), Value::Int(1)).unwrap();
-    context.set_value("bar".into(), Value::Int(1)).unwrap();
+    let context_struct: HashMap<String, JsonValue> =
+        serde_json::from_str(context_string.as_str()).unwrap();
+    for (key, value) in context_struct {
+        match value {
+            JsonValue::String(s) => context.set_value(key.into(), Value::from(s)).unwrap(),
+            JsonValue::Number(n) => context
+                .set_value(key.into(), Value::from(n.as_f64().unwrap()))
+                .unwrap(),
+            JsonValue::Bool(b) => context.set_value(key.into(), Value::from(b)).unwrap(),
+            _ => panic!("Unsupported type in context"),
+        }
+    }
 
-    if let Value::String(result) = run_rules(&parsed_rules, &mut context) {
-        return result;
-    } else {
-        panic!("No result");
+    match run_rules(&parsed_rules, &mut context) {
+        Value::String(result) => {
+            return serde_json::to_string(&result).expect("Failed to serialize result")
+        }
+        Value::Int(result) => {
+            return serde_json::to_string(&result).expect("Failed to serialize result")
+        }
+        Value::Float(result) => {
+            return serde_json::to_string(&result).expect("Failed to serialize result")
+        }
+        Value::Boolean(result) => {
+            return serde_json::to_string(&result).expect("Failed to serialize result")
+        }
+        Value::Tuple(result) => {
+            let mut result_string = result
+                .iter()
+                .fold("[".to_string(), |acc, x| acc + x.to_string().as_str() + ",");
+            result_string.pop();
+
+            result_string + "]"
+        }
+        Value::Empty => "null".to_string(),
     }
 }
 

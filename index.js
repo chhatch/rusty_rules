@@ -2,11 +2,16 @@ const { wasm_rules } = require("./pkg");
 const { ruleFactory } = require("@elite-libs/rules-machine");
 const { performance, PerformanceObserver } = require("node:perf_hooks");
 const { pick } = require("lodash");
+const fs = require("fs");
 
-for (let i = 0; i < 7; i++) {
+const perfData = JSON.parse(fs.readFileSync("./perfData.json"));
+
+for (let i = 0; i < 5; i++) {
   const iterations = 10 ** i;
   benchmark(iterations);
 }
+
+fs.writeFileSync("./perfData.json", JSON.stringify(perfData, null, 2));
 
 function benchmark(iterations) {
   const roteOperation = {
@@ -15,12 +20,17 @@ function benchmark(iterations) {
     else: "bar = bar - 1",
   };
 
-  const returnObj = { return: '"hello node!"' };
+  const returnObj = { return: 'foo, bar, "hello wasm!"' };
 
-  const bigWasmLabel = `wasm: ${iterations} rules`;
-  const littleWasmLabel = `wasm: 1 rule ${iterations} times`;
-  const bigJsLabel = `js: ${iterations} rules`;
-  const littleJsLabel = `js: 1 rule ${iterations} times`;
+  const context = { foo: 1, bar: 1 };
+  const contextString = JSON.stringify(context);
+
+  const bigWasmLabel = `wasm::many::${iterations}`;
+  const littleWasmLabel = `wasm::single::${iterations}`;
+  const bigJsLabel = `js::many::${iterations}`;
+  const littleJsLabel = `js::single::${iterations}`;
+  const bigJsFunctionLabel = `jsFn::many::${iterations}`;
+  const littleJsFunctionLabel = `jsFn::single::${iterations}`;
 
   const bigJsonRules = [];
   for (let i = 0; i < iterations; i++) {
@@ -33,28 +43,57 @@ function benchmark(iterations) {
   const littleRules = JSON.stringify(littleJsonRules);
   const bigRules = JSON.stringify(bigJsonRules);
 
-  performance.mark(bigWasmLabel);
-  wasm_rules(bigRules);
-  performance.measure(bigWasmLabel, bigWasmLabel);
+  const { bigJsFunction, littleJsFunction } = buildFunctionRules(iterations);
 
-  performance.mark(bigJsLabel);
-  const rulesEngine = ruleFactory(bigJsonRules);
-  rulesEngine({ foo: 1, bar: 1 });
-  performance.measure(bigJsLabel, bigJsLabel);
+  const bigWasmFn = () => JSON.parse(wasm_rules(bigRules, contextString));
 
-  performance.mark(littleWasmLabel);
-  for (let i = 0; i < iterations; i++) {
-    wasm_rules(littleRules);
-  }
-  performance.measure(littleWasmLabel, littleWasmLabel);
+  const littleWasmFn = runTimes(
+    () => JSON.parse(wasm_rules(littleRules, contextString)),
+    iterations
+  );
 
-  performance.mark(littleJsLabel);
-  for (let i = 0; i < iterations; i++) {
+  const bigJsFn = () => {
+    const rulesEngine = ruleFactory(bigJsonRules);
+    rulesEngine(context);
+  };
+
+  const littleJsFn = runTimes(() => {
     const rulesEngine = ruleFactory(littleJsonRules);
-    rulesEngine({ foo: 1, bar: 1 });
-  }
-  performance.measure(littleJsLabel, littleJsLabel);
+    rulesEngine(context);
+  }, iterations);
 
+  const bigJsFunctionFn = () => bigJsFunction(1, 1);
+  const littleJsFunctionFn = runTimes(() => littleJsFunction(1, 1), iterations);
+
+  runAndMeasure(bigWasmLabel, bigWasmFn);
+  runAndMeasure(bigJsFunctionLabel, bigJsFunctionFn);
+  runAndMeasure(bigJsLabel, bigJsFn);
+
+  //   runAndMeasure(littleWasmLabel, littleWasmFn);
+  //   runAndMeasure(littleJsFunctionLabel, littleJsFunctionFn);
+  //   runAndMeasure(littleJsLabel, littleJsFn);
+  //   logMeasurements();
+  // addSpace();
+  addPerfData();
+  clearMeasurements();
+}
+
+function runAndMeasure(label, fn) {
+  performance.mark(label);
+  fn();
+  performance.measure(label, label);
+}
+
+function addPerfData() {
+  performance.getEntriesByType("measure").forEach(({ name, duration }) => {
+    if (!perfData[name]) {
+      perfData[name] = [];
+    }
+    perfData[name].push(duration);
+  });
+}
+
+function logMeasurements() {
   console.table(
     performance
       .getEntriesByType("measure")
@@ -64,7 +103,41 @@ function benchmark(iterations) {
         return x;
       })
   );
+}
 
+function clearMeasurements() {
   performance.clearMarks();
   performance.clearMeasures();
+}
+
+function addSpace() {
+  console.log(`
+
+`);
+}
+
+function runTimes(fn, times) {
+  return () => {
+    for (let i = 0; i < times; i++) {
+      fn();
+    }
+  };
+}
+
+function buildFunctionRules(iterations) {
+  const roteOperation = (x) =>
+    `if (foo <= foo && bar > ${x}) { bar = bar + 1 } else { bar = bar - 1 };`;
+  const returnOperation = "return [ foo, bar, 'hello wasm!' ];";
+
+  const bigJsFunctionRules = [];
+  for (let i = 0; i < iterations; i++) {
+    bigJsFunctionRules.push(roteOperation(i));
+  }
+  bigJsFunctionRules.push(returnOperation);
+
+  const littleJsFunctionRules = `${roteOperation(1)}${returnOperation}`;
+
+  const bigJsFunction = Function("foo", "bar", bigJsFunctionRules.join(""));
+  const littleJsFunction = Function("foo", "bar", littleJsFunctionRules);
+  return { bigJsFunction, littleJsFunction };
 }
