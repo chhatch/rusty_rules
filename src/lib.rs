@@ -13,19 +13,33 @@ use wasm_bindgen::prelude::*;
 use web_sys::console;
 
 fn main() {
-    let rule_object_json = r#" {"return": "IF(1 == 0, 2, 3)"}"#;
+    let rule_object_json = r#" [{"if":{"and":["userId == 1","cartId == IF(cartId != 0, 1, cartId)","supplier == IF(supplier != \"\", \"walmart\", supplier)","couponCode == IF(couponCode != \"\", \"1234\", couponCode)","couponType == IF(couponType != \"\", \"promotion\", couponType)","brand == IF(brand != \"\", \"nike\", brand)"]},"then":["tax += 1","source = \"1998\""]},{"return":"tax, source"}]"#;
     let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
 
     let mut context = get_context();
 
-    context.set_value("fish".into(), "oneFish".into()).unwrap();
-    context.set_value("cat".into(), "inHat".into()).unwrap();
+    context.set_value("userId".into(), 1.into()).unwrap();
+    context.set_value("cartId".into(), 1.into()).unwrap();
+    context
+        .set_value("supplier".into(), "walmart".into())
+        .unwrap();
+    context
+        .set_value("couponCode".into(), "1234".into())
+        .unwrap();
+    context
+        .set_value("couponType".into(), "promotion".into())
+        .unwrap();
+    context.set_value("brand".into(), "nike".into()).unwrap();
+    context.set_value("source".into(), "mobile".into()).unwrap();
+    context.set_value("tax".into(), 1.into()).unwrap();
 
     run_rules(&rule_object, &mut context);
 }
 
 #[wasm_bindgen]
 pub fn wasm_rules(rule_string: String, context_string: String) -> String {
+    // console::log_1(&rule_string.clone().into());
+    // console::log_1(&context_string.clone().into());
     let parsed_rules = serde_json::from_str::<Rules>(rule_string.as_str()).unwrap();
     let mut context = get_context();
 
@@ -33,10 +47,9 @@ pub fn wasm_rules(rule_string: String, context_string: String) -> String {
         serde_json::from_str(context_string.as_str()).unwrap();
     for (key, value) in context_struct {
         match value {
-            JsonValue::String(s) => context.set_value(key.into(), Value::from(s)).unwrap(),
-            JsonValue::Number(n) => context
-                .set_value(key.into(), Value::from(n.as_f64().unwrap()))
-                .unwrap(),
+            JsonValue::String(s) => context.set_value(key.into(), s.into()).unwrap(),
+
+            JsonValue::Number(n) => context.set_value(key.into(), 1.into()).unwrap(),
             JsonValue::Bool(b) => context.set_value(key.into(), Value::from(b)).unwrap(),
             _ => panic!("Unsupported type in context"),
         }
@@ -65,6 +78,10 @@ pub fn wasm_rules(rule_string: String, context_string: String) -> String {
         }
         Value::Empty => "null".to_string(),
     }
+}
+
+fn convert(x: f64) -> i32 {
+    x.round().rem_euclid(2f64.powi(32)) as u32 as i32
 }
 
 #[cfg(test)]

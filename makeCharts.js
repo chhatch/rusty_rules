@@ -13,6 +13,8 @@ const prepareData = (lang, type) =>
     _.mapValues((v, k) => {
       return v.reduce((a, b) => a + b, 0) / v.length;
     }),
+    // map to seconds
+    _.mapValues((v) => v / 1000),
     _.mapKeys((k) => k.split("::")[2]),
     Object.entries,
     _.map(([k, v]) => ({ key: k, value: v }))

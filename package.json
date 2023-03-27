@@ -6,7 +6,8 @@
   "author": "Chris Hatch <chris.hatch@hotelengine.com>",
   "license": "MIT",
   "scripts": {
-    "buildWasm": "wasm-pack build ./ --out-name index --target nodejs"
+    "buildWasm": "wasm-pack build ./ --out-name index --target nodejs",
+    "benchAndChart": "node index.js && node index.js && node index.js && node index.js && node index.js && node index.js && node index.js && node index.js && node index.js && node index.js && node index.js && node index.js && node makeCharts.js"
   },
   "dependencies": {
     "@elite-libs/rules-machine": "^1.6.0",

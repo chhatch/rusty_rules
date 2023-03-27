@@ -6,24 +6,40 @@ const fs = require("fs");
 
 const perfData = JSON.parse(fs.readFileSync("./perfData.json"));
 
-for (let i = 0; i < 5; i++) {
-  const iterations = 10 ** i;
-  benchmark(iterations);
-}
+// for (let i = 0; i < 5; i++) {
+const iterations = 10 ** 5 * 4;
+benchmark(iterations);
+// }
 
 fs.writeFileSync("./perfData.json", JSON.stringify(perfData, null, 2));
 
 function benchmark(iterations) {
   const roteOperation = {
-    if: { and: ["foo == foo ", "foo == foo"] },
-    then: "bar = bar + 1",
-    else: "bar = bar - 1",
+    if: {
+      and: [
+        "userId == 1",
+        "cartId == IF(cartId != 0, 1, cartId)",
+        'supplier == IF(supplier != "", "walmart", supplier)',
+        'couponCode == IF(couponCode != "", "1234", couponCode)',
+        'couponType == IF(couponType != "", "promotion", couponType)',
+        'brand == IF(brand != "", "nike", brand)',
+      ],
+    },
+    then: ["tax = tax + 1", 'source = "1998"'],
   };
+  const returnObj = { return: "tax, source" };
 
-  const returnObj = { return: 'foo, bar, "hello wasm!"' };
-
-  const context = { foo: 1, bar: 1 };
-  const contextString = JSON.stringify(context);
+  const getContext = () => ({
+    userId: 1,
+    cartId: 1,
+    supplier: "walmart",
+    couponCode: "1234",
+    couponType: "promotion",
+    brand: "nike",
+    tax: 1,
+    source: "mobile",
+  });
+  const contextString = JSON.stringify(getContext());
 
   const bigWasmLabel = `wasm::many::${iterations}`;
   const littleWasmLabel = `wasm::single::${iterations}`;
@@ -54,25 +70,29 @@ function benchmark(iterations) {
 
   const bigJsFn = () => {
     const rulesEngine = ruleFactory(bigJsonRules);
-    rulesEngine(context);
+    rulesEngine(getContext());
   };
 
+  var context = getContext();
   const littleJsFn = runTimes(() => {
     const rulesEngine = ruleFactory(littleJsonRules);
     rulesEngine(context);
   }, iterations);
 
-  const bigJsFunctionFn = () => bigJsFunction(1, 1);
-  const littleJsFunctionFn = runTimes(() => littleJsFunction(1, 1), iterations);
+  const bigJsFunctionFn = () => bigJsFunction(getContext());
+  const littleJsFunctionFn = runTimes(
+    () => littleJsFunction(getContext()),
+    iterations
+  );
+
+  runAndMeasure(littleWasmLabel, littleWasmFn);
+  runAndMeasure(littleJsFunctionLabel, littleJsFunctionFn);
+  runAndMeasure(littleJsLabel, littleJsFn);
 
   runAndMeasure(bigWasmLabel, bigWasmFn);
   runAndMeasure(bigJsFunctionLabel, bigJsFunctionFn);
   runAndMeasure(bigJsLabel, bigJsFn);
-
-  //   runAndMeasure(littleWasmLabel, littleWasmFn);
-  //   runAndMeasure(littleJsFunctionLabel, littleJsFunctionFn);
-  //   runAndMeasure(littleJsLabel, littleJsFn);
-  //   logMeasurements();
+  logMeasurements();
   // addSpace();
   addPerfData();
   clearMeasurements();
@@ -126,18 +146,21 @@ function runTimes(fn, times) {
 
 function buildFunctionRules(iterations) {
   const roteOperation = (x) =>
-    `if (foo <= foo && bar > ${x}) { bar = bar + 1 } else { bar = bar - 1 };`;
-  const returnOperation = "return [ foo, bar, 'hello wasm!' ];";
+    `if (  userId == 1 &&  (!cartId || cartId == 1) &&  (supplier != "" || supplier == "walmart") &&  (couponCode != "" || couponCode == "1234") &&  (couponType != "" || couponType == "promotion") &&  (brand != "" || brand == "nike")) {  tax += ${x};  source = "1998";};`;
+  const returnOperation = "return [ tax, source ];";
 
+  const arguments =
+    "{userId, cartId, supplier, couponCode, couponType, brand, tax, source = ''}";
   const bigJsFunctionRules = [];
   for (let i = 0; i < iterations; i++) {
-    bigJsFunctionRules.push(roteOperation(i));
+    bigJsFunctionRules.push(roteOperation(1));
   }
   bigJsFunctionRules.push(returnOperation);
 
   const littleJsFunctionRules = `${roteOperation(1)}${returnOperation}`;
 
-  const bigJsFunction = Function("foo", "bar", bigJsFunctionRules.join(""));
-  const littleJsFunction = Function("foo", "bar", littleJsFunctionRules);
+  const bigJsFunction = Function(arguments, bigJsFunctionRules.join(""));
+  const littleJsFunction = Function(arguments, littleJsFunctionRules);
+  littleJsFunctionRules;
   return { bigJsFunction, littleJsFunction };
 }
