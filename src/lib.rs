@@ -13,10 +13,10 @@ use wasm_bindgen::prelude::*;
 use web_sys::console;
 
 fn main() {
-    let rule_object_json = r#" [{"return": "\"hello node!\", \"hello wasm!\""}]"#;
+    let rule_object_json = r#" {"return": "IF(1 == 0, 2, 3)"}"#;
     let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
 
-    let mut context = HashMapContext::new();
+    let mut context = get_context();
 
     context.set_value("fish".into(), "oneFish".into()).unwrap();
     context.set_value("cat".into(), "inHat".into()).unwrap();
@@ -27,7 +27,7 @@ fn main() {
 #[wasm_bindgen]
 pub fn wasm_rules(rule_string: String, context_string: String) -> String {
     let parsed_rules = serde_json::from_str::<Rules>(rule_string.as_str()).unwrap();
-    let mut context = HashMapContext::new();
+    let mut context = get_context();
 
     let context_struct: HashMap<String, JsonValue> =
         serde_json::from_str(context_string.as_str()).unwrap();
@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn evaluate_string() {
         let rule_string = Rules::String("fish = \"redFish\"".to_string());
-        let mut context = HashMapContext::new();
+        let mut context = get_context();
 
         context.set_value("fish".into(), "oneFish".into()).unwrap();
 
@@ -91,7 +91,7 @@ mod tests {
         // this test is also a regression test for bug where length 3 arrays were parsed as If objects
         let rule_array_json = r#"["fish = \"twoFish\"", "cat = \"inHat\"", "fish = \"blueFish\""]"#;
         let rule_array = serde_json::from_str::<Rules>(rule_array_json).unwrap();
-        let mut context = HashMapContext::new();
+        let mut context = get_context();
 
         context.set_value("fish".into(), "oneFish".into()).unwrap();
         context.set_value("cat".into(), "noHat".into()).unwrap();
@@ -118,7 +118,7 @@ mod tests {
         "else": "fish = \"blueFish\""
         }"#;
         let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
-        let mut context = HashMapContext::new();
+        let mut context = get_context();
 
         context.set_value("fish".into(), "oneFish".into()).unwrap();
         context.set_value("cat".into(), "inHat".into()).unwrap();
@@ -145,7 +145,7 @@ mod tests {
           "else": "fish = \"blueFish\""
         }"#;
         let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
-        let mut context = HashMapContext::new();
+        let mut context = get_context();
 
         context.set_value("fish".into(), "oneFish".into()).unwrap();
         context.set_value("cat".into(), "inHat".into()).unwrap();
@@ -172,7 +172,7 @@ mod tests {
           "else": "fish = \"blueFish\""
         }"#;
         let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
-        let mut context = HashMapContext::new();
+        let mut context = get_context();
 
         context.set_value("fish".into(), "oneFish".into()).unwrap();
         context.set_value("cat".into(), "noHat".into()).unwrap();
@@ -203,7 +203,7 @@ mod tests {
   "else": { "return": "\"blueFish\"" }
 }"#;
         let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
-        let mut context = HashMapContext::new();
+        let mut context = get_context();
 
         context.set_value("fish".into(), "oneFish".into()).unwrap();
         context.set_value("cat".into(), "inHat".into()).unwrap();
@@ -211,5 +211,23 @@ mod tests {
         let result = run_rules(&rule_object, &mut context);
 
         assert_eq!(result, Value::String("twoFish".to_string()));
+    }
+
+    #[test]
+    fn evaluate_IF_Fn() {
+        let rule_object_json = r#" {"return": "IF(1 == 1, 1, 0)"}"#;
+        let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
+        let mut context = get_context();
+
+        let result = run_rules(&rule_object, &mut context);
+
+        assert_eq!(result, Value::Int(1));
+
+        let rule_object_json = r#" {"return": "IF(1 == 0, 1, 0)"}"#;
+        let rule_object = serde_json::from_str::<Rules>(rule_object_json).unwrap();
+
+        let result = run_rules(&rule_object, &mut context);
+
+        assert_eq!(result, Value::Int(0));
     }
 }

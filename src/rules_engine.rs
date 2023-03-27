@@ -1,4 +1,4 @@
-use evalexpr::{eval_with_context_mut, HashMapContext, Value};
+use evalexpr::{context_map, eval_with_context_mut, HashMapContext, Value};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -131,6 +131,27 @@ pub fn rule_recursion(rules: &Rules, context: &mut HashMapContext) -> Exit {
     };
 
     result
+}
+
+pub fn get_context() -> HashMapContext {
+    context_map! {
+        "IF" => Function::new(|args_tuple| {
+                if let evalexpr::Value::Tuple(args) = args_tuple {
+                    if args.len() != 3 {
+                        panic!("IF function must have 3 arguments");
+                    }
+                    if let Value::Boolean(condition) = args[0] {
+                        if condition {
+                            return Ok(args[1].clone());
+                        } else {
+                            return Ok(args[2].clone());
+                        }
+                    }
+                }
+                Ok(Value::from(true))
+        })
+    }
+    .unwrap()
 }
 
 fn unwrap_continue(exit: Exit) -> Value {
